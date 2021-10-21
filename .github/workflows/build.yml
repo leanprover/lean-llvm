@@ -1,0 +1,36 @@
+name: Build LLVM
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  Build:
+    runs-on: ubuntu-18.04
+    steps:
+      - uses: actions/checkout@v2
+      - uses: hendrikmuhs/ccache-action@v1
+      - name: Build
+        run: |
+          # multilib necessary for building compiler-rt
+          sudo apt install ninja-build gcc-multilib libc++-dev
+          #curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 13
+          #sudo apt install libc++-13-dev libc++1-13 libc++abi-13-dev libc++abi1-13
+          git clone --depth 1 -b llvmorg-13.0.0 --recursive https://github.com/llvm/llvm-project
+          cd llvm-project
+          mkdir build
+          cd build
+          cmake -G Ninja ../llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
+            -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON -DLLVM_ENABLE_RUNTIMES='compiler-rt;libc;libcxx;libcxxabi;libunwind'\
+            -DLLVM_ENABLE_ZLIB=OFF -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLIBCXX_USE_COMPILER_RT=ON -DLLVM_ENABLE_LIBCXX=ON
+          cmake --build .
+          cmake --install .
+          
+      - uses: actions/upload-artifact@v2
+        with:
+          name: lean-llvm
+          path: lean-llvm
