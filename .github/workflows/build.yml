@@ -4,6 +4,8 @@ on:
   push:
     branches:
       - main
+    tags:
+      - '*'
   pull_request:
     branches:
       - main
@@ -21,7 +23,7 @@ jobs:
           #curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 13
           #sudo apt install libc++-13-dev libc++1-13 libc++abi-13-dev libc++abi1-13
           git clone --depth 1 -b llvmorg-13.0.0 --recursive https://github.com/llvm/llvm-project
-          cd llvm-project
+          pushd llvm-project
           mkdir build
           cd build
           cmake -G Ninja ../llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
@@ -31,8 +33,13 @@ jobs:
             -DLLVM_BUILD_TOOLS=OFF -DLLVM_TARGETS_TO_BUILD='AArch64;WebAssembly;X86'
           cmake --build .
           cmake --install .
-          
+          popd
+          tar cf lean-llvm.tar.zst -I zstd lean-llvm/
       - uses: actions/upload-artifact@v2
         with:
           name: lean-llvm
-          path: lean-llvm
+          path: lean-llvm.tar.zst
+      - uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: lean-llvm.tar.zst
