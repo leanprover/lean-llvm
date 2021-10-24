@@ -28,9 +28,11 @@ jobs:
           cd build
           cmake -G Ninja ../llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
             -DLLVM_ENABLE_PROJECTS="clang;lld" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON -DLLVM_ENABLE_RUNTIMES='compiler-rt;libc;libcxx;libcxxabi;libunwind'\
-            -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLIBCXX_USE_COMPILER_RT=ON -DLLVM_ENABLE_LIBCXX=ON\
+            -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON\
             `# https://boxbase.org/entries/2018/jun/11/minimal-llvm-build/`\
-            -DLLVM_BUILD_TOOLS=OFF -DLLVM_TARGETS_TO_BUILD='AArch64;WebAssembly;X86'
+            -DLLVM_BUILD_TOOLS=OFF -DLLVM_TARGETS_TO_BUILD='AArch64;WebAssembly;X86'\
+            `# https://libcxx.llvm.org/BuildingLibcxx.html`\
+            -DCLANG_DEFAULT_LINKER=lld -DCLANG_DEFAULT_RTLIB=compiler-rt -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON
           cmake --build .
           cmake --install .
           popd
