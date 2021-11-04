@@ -67,8 +67,12 @@ jobs:
       - name: Build
         if: matrix.os != 'windows-latest'
         run: |
-          git clone --depth 1 -b llvmorg-13.0.0 --recursive https://github.com/llvm/llvm-project
+          git clone -q --depth 1 -b llvmorg-13.0.0 --recursive https://github.com/llvm/llvm-project
           pushd llvm-project
+          if [[ '${{ matrix.os }}' == 'ubuntu-*' ]]; then
+            # shrug
+            sed -i 's/if (LIBCXX_HAS_ATOMIC_LIB)/if (NO)/' libcxx/CMakeLists.txt
+          fi
           mkdir build
           cd build
           cmake -G Ninja ../llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_USE_LINKER=lld\
