@@ -22,14 +22,11 @@ jobs:
         include:
           - name: x86_64-linux-gnu
             os: ubuntu-18.04
-            more-opts: -DCMAKE_C_COMPILER=clang-13 -DCMAKE_CXX_COMPILER=clang++-13
+            more-opts: -DCMAKE_C_COMPILER=clang-13 -DCMAKE_CXX_COMPILER=clang++-13 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
           - name: x86_64-apple-darwin
             os: macos-latest
-            # macOS says: ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
-            more-opts: -DLLVM_USE_LINKER=ld
-          - name: x86_64-windows-gnu
-            os: windows-latest
-            shell: msys2 {0}
+            # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
+            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath'
       # complete all jobs
       fail-fast: false
     env:
@@ -69,7 +66,7 @@ jobs:
         run: |
           git clone -q --depth 1 -b llvmorg-13.0.0 --recursive https://github.com/llvm/llvm-project
           pushd llvm-project
-          if [[ '${{ matrix.os }}' == 'ubuntu-*' ]]; then
+          if [[ '${{ matrix.os }}' == ubuntu-* ]]; then
             # shrug
             sed -i 's/if (LIBCXX_HAS_ATOMIC_LIB)/if (NO)/' libcxx/CMakeLists.txt
           fi
@@ -81,12 +78,12 @@ jobs:
             `# https://boxbase.org/entries/2018/jun/11/minimal-llvm-build/`\
             -DLLVM_BUILD_TOOLS=OFF -DLLVM_TARGETS_TO_BUILD='AArch64;WebAssembly;X86'\
             `# https://libcxx.llvm.org/BuildingLibcxx.html`\
-            -DCLANG_DEFAULT_LINKER=lld -DCLANG_DEFAULT_RTLIB=compiler-rt -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON\
+            -DCLANG_DEFAULT_LINKER=lld -DCLANG_DEFAULT_RTLIB=compiler-rt -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON\
             `# https://llvm.org/docs/BuildingADistribution.html`\
             -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON\
             `# hide libc++ symbols in libleanshared`\
             -DLIBCXX_HERMETIC_STATIC_LIBRARY=ON -DLIBCXXABI_HERMETIC_STATIC_LIBRARY=ON\
-            -DCMAKE_EXE_LINKER_FLAGS=-rtlib=compiler-rt -DCMAKE_SHARED_LINKER_FLAGS=-rtlib=compiler-rt\
+            -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
             ${{ matrix.more-opts }}
           cmake --build .
           cmake --install .
