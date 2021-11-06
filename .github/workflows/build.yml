@@ -27,6 +27,18 @@ jobs:
             os: macos-latest
             # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
             more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath'
+          - name: x86_64-w64-windows-gnu
+            os: windows-latest
+            shell: msys2 {0}
+            # from https://github.com/msys2/MINGW-packages/blob/master/mingw-w64-clang/PKGBUILD
+            # from https://github.com/msys2/MINGW-packages/blob/master/mingw-w64-libc%2B%2B/PKGBUILD
+            # some problem with libc++.dll, but we don't need it anyway (but `LLVM_STATIC_LINK_CXX_STDLIB` doesn't work on Linux??)
+            # Ninja doesn't seem to work w/ ccache
+            more-opts: |
+              -DCMAKE_SYSTEM_IGNORE_PATH=/usr/lib -DLLVM_HOST_TRIPLE=x86_64-w64-windows-gnu -DLLD_DEFAULT_LD_LLD_IS_MINGW=ON \
+              -DLIBCXX_HAS_WIN32_THREAD_API=ON -DLIBCXXABI_HAS_WIN32_THREAD_API=ON \
+              -DLIBCXX_ENABLE_SHARED=OFF -DLIBCXXABI_ENABLE_SHARED=OFF -DLLVM_STATIC_LINK_CXX_STDLIB=ON \
+              -G "Unix Makefiles"
       # complete all jobs
       fail-fast: false
     env:
@@ -52,7 +64,8 @@ jobs:
         if: matrix.os == 'windows-latest'
         uses: msys2/setup-msys2@v2
         with:
-          install: mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-ccache git mingw-w64-clang-x86_64-cmake mingw-w64-clang-x86_64-z3 mingw-w64-clang-x86_64-ninja mingw-w64-clang-x86_64-pkg-config mingw-w64-clang-x86_64-python-sphinx mingw-w64-clang-x86_64-python tar base-devel
+          msystem: clang64
+          install: mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-ccache git mingw-w64-clang-x86_64-cmake make tar zstd
       - name: Cache
         uses: actions/cache@v2
         with:
@@ -62,7 +75,6 @@ jobs:
           restore-keys: |
             ${{ matrix.name }}-build
       - name: Build
-        if: matrix.os != 'windows-latest'
         run: |
           git clone -q --depth 1 -b llvmorg-13.0.0 --recursive https://github.com/llvm/llvm-project
           pushd llvm-project
@@ -72,7 +84,7 @@ jobs:
           fi
           mkdir build
           cd build
-          cmake -G Ninja ../llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_USE_LINKER=lld\
+          cmake -G Ninja ../llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/../../lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_USE_LINKER=lld\
             -DLLVM_ENABLE_PROJECTS="clang;lld;compiler-rt;libcxx;libcxxabi;libunwind" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
             -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON\
             `# https://boxbase.org/entries/2018/jun/11/minimal-llvm-build/`\
@@ -85,16 +97,10 @@ jobs:
             -DLIBCXX_HERMETIC_STATIC_LIBRARY=ON -DLIBCXXABI_HERMETIC_STATIC_LIBRARY=ON\
             -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
             ${{ matrix.more-opts }}
-          cmake --build .
+          cmake --build . -j2
           cmake --install .
           popd
           tar cf lean-llvm-${{ matrix.name }}.tar.zst --use-compress-program="zstd -19" lean-llvm/
-      - name: Build
-        if: matrix.os == 'windows-latest'
-        run: |
-          git clone https://github.com/Kha/MINGW-packages
-          cd MINGW-packages/mingw-w64-clang
-          MINGW_ARCH=clang64 makepkg-mingw -sCLf --skippgpcheck
       - name: CCache stats
         run: ccache -s
       - uses: actions/upload-artifact@v2
