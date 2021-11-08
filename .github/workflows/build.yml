@@ -90,7 +90,7 @@ jobs:
             `# https://boxbase.org/entries/2018/jun/11/minimal-llvm-build/`\
             -DLLVM_BUILD_TOOLS=OFF -DLLVM_TARGETS_TO_BUILD='AArch64;WebAssembly;X86'\
             `# https://libcxx.llvm.org/BuildingLibcxx.html`\
-            -DCLANG_DEFAULT_LINKER=lld -DCLANG_DEFAULT_RTLIB=compiler-rt -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON\
+            -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DCLANG_DEFAULT_RTLIB=compiler-rt -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON\
             `# https://llvm.org/docs/BuildingADistribution.html`\
             -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON\
             `# hide libc++ symbols in libleanshared`\
