@@ -22,7 +22,7 @@ jobs:
         include:
           - name: x86_64-linux-gnu
             os: ubuntu-18.04
-            more-opts: -DCMAKE_C_COMPILER=clang-13 -DCMAKE_CXX_COMPILER=clang++-13 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
+            more-opts: -DCMAKE_C_COMPILER=clang-14 -DCMAKE_CXX_COMPILER=clang++-14 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
           - name: x86_64-apple-darwin
             os: macos-latest
             # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
@@ -51,8 +51,8 @@ jobs:
         run: |
           # multilib necessary for building compiler-rt
           sudo apt install ninja-build gcc-multilib lld ccache
-          curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 13
-          sudo apt install clang-13 clang++-13 libc++-13-dev libc++abi-13-dev
+          curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 14
+          sudo apt install clang-14 clang++-14 libc++-14-dev libc++abi-14-dev
       - name: Prepare
         if: matrix.os == 'macos-latest'
         run: |
@@ -74,7 +74,7 @@ jobs:
             ${{ matrix.name }}-build
       - name: Build
         run: |
-          git clone -q --depth 1 -b llvmorg-13.0.0 --recursive https://github.com/llvm/llvm-project
+          git clone -q --depth 1 -b llvmorg-14.0.0 --recursive https://github.com/llvm/llvm-project
           pushd llvm-project
           if [[ '${{ matrix.os }}' == ubuntu-* ]]; then
             # shrug
