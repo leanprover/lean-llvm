@@ -21,12 +21,16 @@ jobs:
       matrix:
         include:
           - name: x86_64-linux-gnu
-            os: ubuntu-18.04
-            more-opts: -DCMAKE_C_COMPILER=clang-15 -DCMAKE_CXX_COMPILER=clang++-15 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
+            os: ubuntu-latest
+            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
           - name: x86_64-apple-darwin
+            os: macos-12
+            # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
+            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19
+          - name: aarch64-apple-darwin
             os: macos-latest
             # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
-            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15
+            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19
           - name: x86_64-w64-windows-gnu
             os: windows-latest
             shell: msys2 {0}
@@ -47,12 +51,12 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Prepare
-        if: matrix.os == 'ubuntu-18.04'
+        if: matrix.os == 'ubuntu-latest'
         run: |
           # multilib necessary for building compiler-rt
           sudo apt install ninja-build gcc-multilib lld ccache
-          curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 15
-          sudo apt install clang-15 clang++-15 libc++-15-dev libc++abi-15-dev
+          curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 19
+          sudo apt install clang-19 clang++-19 libc++-19-dev libc++abi-19-dev
       - name: Prepare
         if: matrix.os == 'macos-latest'
         run: |
@@ -74,7 +78,7 @@ jobs:
             ${{ matrix.name }}-build
       - name: Build
         run: |
-          git clone -q --depth 1 -b llvmorg-15.0.1 --recursive https://github.com/llvm/llvm-project
+          git clone -q --depth 1 -b llvmorg-19.1.2 --recursive https://github.com/llvm/llvm-project
           pushd llvm-project
           mkdir build
           cd build
