@@ -24,7 +24,7 @@ jobs:
             os: ubuntu-latest
             more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
           - name: x86_64-apple-darwin
-            os: macos-12
+            os: macos-13  # still x64
             # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
             more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19
           - name: aarch64-apple-darwin
@@ -58,9 +58,7 @@ jobs:
           curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 19
           sudo apt install clang-19 libc++-19-dev libc++abi-19-dev
       - name: Prepare
-        if: |
-          matrix.os == 'macos-latest' ||
-          matrix.os == 'macos-12'
+        if: startsWith(matrix.os, 'macos')
         run: |
           brew install ninja llvm ccache zstd
           echo "$(brew --prefix)/opt/llvm/bin" >> $GITHUB_PATH
