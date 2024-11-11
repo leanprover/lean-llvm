@@ -56,7 +56,7 @@ jobs:
           # multilib necessary for building compiler-rt
           sudo apt install ninja-build gcc-multilib lld ccache
           curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 19
-          sudo apt install clang-19 clang++-19 libc++-19-dev libc++abi-19-dev
+          sudo apt install clang-19 libc++-19-dev libc++abi-19-dev
       - name: Prepare
         if: matrix.os == 'macos-latest'
         run: |
