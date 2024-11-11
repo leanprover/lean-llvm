@@ -58,7 +58,9 @@ jobs:
           curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 19
           sudo apt install clang-19 libc++-19-dev libc++abi-19-dev
       - name: Prepare
-        if: matrix.os == 'macos-latest'
+        if: |
+          matrix.os == 'macos-latest' ||
+          matrix.os == 'macos-12'
         run: |
           brew install ninja llvm ccache zstd
           echo "$(brew --prefix)/opt/llvm/bin" >> $GITHUB_PATH
