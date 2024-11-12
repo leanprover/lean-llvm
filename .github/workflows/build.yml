@@ -21,12 +21,19 @@ jobs:
       matrix:
         include:
           - name: x86_64-linux-gnu
-            os: ubuntu-18.04
-            more-opts: -DCMAKE_C_COMPILER=clang-14 -DCMAKE_CXX_COMPILER=clang++-14 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
+            os: ubuntu-latest
+            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
+          - name: aarch64-linux-gnu
+            os: nscloud-ubuntu-22.04-arm64-4x8
+            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
           - name: x86_64-apple-darwin
+            os: macos-13  # still x64
+            # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
+            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19
+          - name: aarch64-apple-darwin
             os: macos-latest
             # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
-            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.15
+            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19
           - name: x86_64-w64-windows-gnu
             os: windows-latest
             shell: msys2 {0}
@@ -46,15 +53,19 @@ jobs:
       CCACHE_MAXSIZE: 200M
     steps:
       - uses: actions/checkout@v2
-      - name: Prepare
-        if: matrix.os == 'ubuntu-18.04'
+      - name: Prepare Linux x86
+        if: matrix.os == 'ubuntu-latest'
         run: |
           # multilib necessary for building compiler-rt
-          sudo apt install ninja-build gcc-multilib lld ccache
-          curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 14
-          sudo apt install clang-14 clang++-14 libc++-14-dev libc++abi-14-dev
+          sudo apt-get install -y gcc-multilib
       - name: Prepare
-        if: matrix.os == 'macos-latest'
+        if: contains(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get install -y ninja-build lld ccache
+          curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 19
+          sudo apt-get install -y clang-19 libc++-19-dev libc++abi-19-dev
+      - name: Prepare
+        if: startsWith(matrix.os, 'macos')
         run: |
           brew install ninja llvm ccache zstd
           echo "$(brew --prefix)/opt/llvm/bin" >> $GITHUB_PATH
@@ -74,24 +85,18 @@ jobs:
             ${{ matrix.name }}-build
       - name: Build
         run: |
-          git clone -q --depth 1 -b llvmorg-14.0.0 --recursive https://github.com/llvm/llvm-project
+          git clone -q --depth 1 -b llvmorg-19.1.2 --recursive https://github.com/llvm/llvm-project
           pushd llvm-project
-          if [[ '${{ matrix.os }}' == ubuntu-* ]]; then
-            # shrug
-            sed -i 's/if (LIBCXX_HAS_ATOMIC_LIB)/if (NO)/' libcxx/CMakeLists.txt
-          fi
           mkdir build
           cd build
           cmake -G Ninja ../llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/../../lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_USE_LINKER=lld\
-            -DLLVM_ENABLE_PROJECTS="clang;lld;compiler-rt;libcxx;libcxxabi;libunwind;bolt" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
-            -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON\
+            -DLLVM_ENABLE_PROJECTS="llvm;clang;lld;compiler-rt;bolt" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
+            -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF\
             `# https://boxbase.org/entries/2018/jun/11/minimal-llvm-build/`\
             -DLLVM_TARGETS_TO_BUILD='AArch64;WebAssembly;X86'\
             `# https://libcxx.llvm.org/BuildingLibcxx.html`\
             -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DCLANG_DEFAULT_RTLIB=compiler-rt -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON\
             -DCOMPILER_RT_BUILD_SANITIZERS=OFF\
-            `# https://llvm.org/docs/BuildingADistribution.html`\
-            -DLLVM_INSTALL_TOOLCHAIN_ONLY=ON\
             `# hide libc++ symbols in libleanshared`\
             -DLIBCXX_HERMETIC_STATIC_LIBRARY=ON -DLIBCXXABI_HERMETIC_STATIC_LIBRARY=ON\
             -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
@@ -104,7 +109,7 @@ jobs:
         run: lean-llvm/bin/clang -v
       - name: CCache stats
         run: ccache -s
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: lean-llvm-${{ matrix.name }}
           path: '*.tar.*'
