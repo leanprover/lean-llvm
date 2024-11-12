@@ -57,13 +57,13 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           # multilib necessary for building compiler-rt
-          sudo apt install gcc-multilib
+          sudo apt-get install -y gcc-multilib
       - name: Prepare
         if: contains(matrix.os, 'ubuntu')
         run: |
-          sudo apt install ninja-build lld ccache
+          sudo apt-get install -y ninja-build lld ccache
           curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 19
-          sudo apt install clang-19 libc++-19-dev libc++abi-19-dev
+          sudo apt-get install -y clang-19 libc++-19-dev libc++abi-19-dev
       - name: Prepare
         if: startsWith(matrix.os, 'macos')
         run: |
