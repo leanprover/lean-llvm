@@ -23,6 +23,9 @@ jobs:
           - name: x86_64-linux-gnu
             os: ubuntu-latest
             more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
+          - name: aarch64-linux-gnu
+            os: nscloud-ubuntu-22.04-arm64-4x8
+            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
           - name: x86_64-apple-darwin
             os: macos-13  # still x64
             # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
@@ -51,7 +54,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Prepare
-        if: matrix.os == 'ubuntu-latest'
+        if: contains(matrix.os, 'ubuntu')
         run: |
           # multilib necessary for building compiler-rt
           sudo apt install ninja-build gcc-multilib lld ccache
