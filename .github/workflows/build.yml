@@ -3,7 +3,7 @@ name: Build LLVM
 on:
   push:
     branches:
-      - '*'
+      - main
     tags:
       - '*'
   pull_request:
