@@ -53,11 +53,15 @@ jobs:
       CCACHE_MAXSIZE: 200M
     steps:
       - uses: actions/checkout@v2
+      - name: Prepare Linux x86
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          # multilib necessary for building compiler-rt
+          sudo apt install gcc-multilib
       - name: Prepare
         if: contains(matrix.os, 'ubuntu')
         run: |
-          # multilib necessary for building compiler-rt
-          sudo apt install ninja-build gcc-multilib lld ccache
+          sudo apt install ninja-build lld ccache
           curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 19
           sudo apt install clang-19 libc++-19-dev libc++abi-19-dev
       - name: Prepare
