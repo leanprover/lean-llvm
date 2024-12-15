@@ -103,11 +103,10 @@ jobs:
             -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
             -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF\
             ${{ matrix.more-opts }}
-          cmake --build . -j2 || cat CMakeFiles/CMakeError.log
-          exit 1
-          # cmake --install .
-          # popd
-          # tar cf lean-llvm-${{ matrix.name }}.tar.zst --use-compress-program="zstd -19" lean-llvm/
+          cmake --build . -j$(nproc)
+          cmake --install .
+          popd
+          tar cf lean-llvm-${{ matrix.name }}.tar.zst --use-compress-program="zstd -19" lean-llvm/
       - name: Sanity test
         run: lean-llvm/bin/clang -v
       - name: CCache stats
