@@ -41,7 +41,6 @@ jobs:
             # from https://github.com/msys2/MINGW-packages/blob/master/mingw-w64-libc%2B%2B/PKGBUILD
             # Ninja doesn't seem to work w/ ccache
             more-opts: |
-              --trace
               -DCMAKE_SYSTEM_IGNORE_PATH=/usr/lib -DLLVM_HOST_TRIPLE=x86_64-w64-windows-gnu -DLLD_DEFAULT_LD_LLD_IS_MINGW=ON \
               -DLIBCXX_HAS_WIN32_THREAD_API=ON -DLIBCXXABI_HAS_WIN32_THREAD_API=ON -DLIBCXX_ENABLE_SHARED=OFF -DLIBCXXABI_ENABLE_SHARED=OFF -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
               -G "Unix Makefiles" -DCMAKE_INSTALL_LIBDIR=lib
@@ -104,10 +103,11 @@ jobs:
             -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
             -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF\
             ${{ matrix.more-opts }}
-          cmake --build . -j2
-          cmake --install .
-          popd
-          tar cf lean-llvm-${{ matrix.name }}.tar.zst --use-compress-program="zstd -19" lean-llvm/
+          cmake --build . -j2 || cat CMakeFiles/CMakeError.log
+          exit 1
+          # cmake --install .
+          # popd
+          # tar cf lean-llvm-${{ matrix.name }}.tar.zst --use-compress-program="zstd -19" lean-llvm/
       - name: Sanity test
         run: lean-llvm/bin/clang -v
       - name: CCache stats
