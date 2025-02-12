@@ -20,20 +20,20 @@ jobs:
     strategy:
       matrix:
         include:
-          - name: x86_64-linux-gnu
-            os: ubuntu-latest
-            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
-          - name: aarch64-linux-gnu
-            os: nscloud-ubuntu-22.04-arm64-4x8
-            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
-          - name: x86_64-apple-darwin
-            os: macos-13  # still x64
-            # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
-            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19 -DCOMPILER_RT_ENABLE_IOS=false
-          - name: aarch64-apple-darwin
-            os: macos-latest
-            # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
-            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19 -DCOMPILER_RT_ENABLE_IOS=false
+          #- name: x86_64-linux-gnu
+          #  os: ubuntu-latest
+          #  more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
+          #- name: aarch64-linux-gnu
+          #  os: nscloud-ubuntu-22.04-arm64-4x8
+          #  more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
+          #- name: x86_64-apple-darwin
+          #  os: macos-13  # still x64
+          #  # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
+          #  more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19 -DCOMPILER_RT_ENABLE_IOS=false
+          #- name: aarch64-apple-darwin
+          #  os: macos-latest
+          #  # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
+          #  more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19 -DCOMPILER_RT_ENABLE_IOS=false
           - name: x86_64-w64-windows-gnu
             os: windows-latest
             shell: msys2 {0}
@@ -89,23 +89,35 @@ jobs:
         run: |
           git clone -q --depth 1 -b llvmorg-19.1.2 --recursive https://github.com/llvm/llvm-project
           pushd llvm-project
-          mkdir build
-          cd build
-          cmake -G Ninja ../llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/../../lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
-            -DLLVM_ENABLE_PROJECTS="llvm;clang;lld;compiler-rt;bolt" -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;pstl;libcxx" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
+          #cmake -G Ninja . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/../../lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
+          #  -DLLVM_ENABLE_PROJECTS="llvm;clang;lld;compiler-rt;bolt" -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;pstl;libcxx" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
+          #  -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF\
+          #  `# https://boxbase.org/entries/2018/jun/11/minimal-llvm-build/`\
+          #  -DLLVM_TARGETS_TO_BUILD='AArch64;WebAssembly;X86'\
+          #  `# https://libcxx.llvm.org/BuildingLibcxx.html`\
+          #  -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DCLANG_DEFAULT_RTLIB=compiler-rt -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON\
+          #  -DCOMPILER_RT_BUILD_SANITIZERS=OFF\
+          #  `# hide libc++ symbols in libleanshared`\
+          #  -DLIBCXX_HERMETIC_STATIC_LIBRARY=ON -DLIBCXXABI_HERMETIC_STATIC_LIBRARY=ON\
+          #  -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
+          #  -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF\
+          #  ${{ matrix.more-opts }}
+          #cmake --build build -j$(nproc)
+          #cmake --install build
+          pushd runtimes
+          cmake -G Ninja . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/../../../lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
+            -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;pstl;libcxx" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
             -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF\
-            `# https://boxbase.org/entries/2018/jun/11/minimal-llvm-build/`\
-            -DLLVM_TARGETS_TO_BUILD='AArch64;WebAssembly;X86'\
-            `# https://libcxx.llvm.org/BuildingLibcxx.html`\
-            -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DCLANG_DEFAULT_RTLIB=compiler-rt -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON\
+            -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON\
             -DCOMPILER_RT_BUILD_SANITIZERS=OFF\
             `# hide libc++ symbols in libleanshared`\
             -DLIBCXX_HERMETIC_STATIC_LIBRARY=ON -DLIBCXXABI_HERMETIC_STATIC_LIBRARY=ON\
             -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
             -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF\
             ${{ matrix.more-opts }}
-          cmake --build . -j$(nproc)
-          cmake --install .
+          cmake --build build -j$(nproc)
+          cmake --install build
+          popd
           popd
           tar cf lean-llvm-${{ matrix.name }}.tar.zst --use-compress-program="zstd -19" lean-llvm/
       - name: Sanity test
