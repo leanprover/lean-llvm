@@ -89,7 +89,7 @@ jobs:
         run: |
           git clone -q --depth 1 -b llvmorg-19.1.2 --recursive https://github.com/llvm/llvm-project
           pushd llvm-project
-          #cmake -G Ninja . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/../../lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
+          #cmake -G Ninja . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/../lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
           #  -DLLVM_ENABLE_PROJECTS="llvm;clang;lld;compiler-rt;bolt" -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;pstl;libcxx" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
           #  -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF\
           #  `# https://boxbase.org/entries/2018/jun/11/minimal-llvm-build/`\
@@ -105,7 +105,7 @@ jobs:
           #cmake --build build -j$(nproc)
           #cmake --install build
           pushd runtimes
-          cmake -G Ninja . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/../../../lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
+          cmake -G Ninja . -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/../../lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
             -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;pstl;libcxx" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
             -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF\
             -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON\
