@@ -101,7 +101,7 @@ jobs:
           #  -DLIBCXX_HERMETIC_STATIC_LIBRARY=ON -DLIBCXXABI_HERMETIC_STATIC_LIBRARY=ON\
           #  -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
           #  -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF\
-          #  ${{ matrix.more-opts }}
+          #  {{ matrix.more-opts }}
           #cmake --build build -j$(nproc)
           #cmake --install build
           pushd runtimes
