@@ -29,11 +29,11 @@ jobs:
           - name: x86_64-apple-darwin
             os: macos-13  # still x64
             # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
-            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19
+            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19 -DCOMPILER_RT_ENABLE_IOS=false
           - name: aarch64-apple-darwin
             os: macos-latest
             # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
-            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19
+            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19 -DCOMPILER_RT_ENABLE_IOS=false
           - name: x86_64-w64-windows-gnu
             os: windows-latest
             shell: msys2 {0}
@@ -43,11 +43,12 @@ jobs:
             more-opts: |
               -DCMAKE_SYSTEM_IGNORE_PATH=/usr/lib -DLLVM_HOST_TRIPLE=x86_64-w64-windows-gnu -DLLD_DEFAULT_LD_LLD_IS_MINGW=ON \
               -DLIBCXX_HAS_WIN32_THREAD_API=ON -DLIBCXXABI_HAS_WIN32_THREAD_API=ON -DLIBCXX_ENABLE_SHARED=OFF -DLIBCXXABI_ENABLE_SHARED=OFF -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
-              -G "Unix Makefiles"
+              -G "Unix Makefiles" -DCMAKE_INSTALL_LIBDIR=lib -DLIBUNWIND_ENABLE_SHARED=OFF
       # complete all jobs
       fail-fast: false
     env:
       CCACHE_DIR: ${{ github.workspace }}/.ccache
+      LLVM_CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_COMPRESS: true
       # current cache limit
       CCACHE_MAXSIZE: 200M
@@ -57,6 +58,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: |
           # multilib necessary for building compiler-rt
+          sudo apt-get update -y
           sudo apt-get install -y gcc-multilib
       - name: Prepare
         if: contains(matrix.os, 'ubuntu')
@@ -86,24 +88,32 @@ jobs:
       - name: Build
         run: |
           git clone -q --depth 1 -b llvmorg-19.1.2 --recursive https://github.com/llvm/llvm-project
-          pushd llvm-project
-          mkdir build
-          cd build
-          cmake -G Ninja ../llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/../../lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_USE_LINKER=lld\
+          cmake llvm-project/llvm -G Ninja -B build/llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
             -DLLVM_ENABLE_PROJECTS="llvm;clang;lld;compiler-rt;bolt" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
             -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF\
             `# https://boxbase.org/entries/2018/jun/11/minimal-llvm-build/`\
             -DLLVM_TARGETS_TO_BUILD='AArch64;WebAssembly;X86'\
-            `# https://libcxx.llvm.org/BuildingLibcxx.html`\
-            -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DCLANG_DEFAULT_RTLIB=compiler-rt -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON\
+            -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DCLANG_DEFAULT_RTLIB=compiler-rt -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON\
             -DCOMPILER_RT_BUILD_SANITIZERS=OFF\
+            -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
+            -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF\
+            ${{ matrix.more-opts }}
+          cmake --build build/llvm -j$(nproc)
+          cmake --install build/llvm
+          # LLVM wants to build the runtimes using the bootstrapped compiler via LLVM_ENABLE_RUNTIMES but that breaks horribly on Windows,
+          # build as a separate project using msys LLVM as before
+          cmake llvm-project/runtimes -G Ninja -B build/runtimes -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
+            -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;pstl;libcxx" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
+            -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF\
+            `# https://libcxx.llvm.org/BuildingLibcxx.html`\
+            -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON\
             `# hide libc++ symbols in libleanshared`\
             -DLIBCXX_HERMETIC_STATIC_LIBRARY=ON -DLIBCXXABI_HERMETIC_STATIC_LIBRARY=ON\
             -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
+            -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF\
             ${{ matrix.more-opts }}
-          cmake --build . -j2
-          cmake --install .
-          popd
+          cmake --build build/runtimes -j$(nproc)
+          cmake --install build/runtimes
           tar cf lean-llvm-${{ matrix.name }}.tar.zst --use-compress-program="zstd -19" lean-llvm/
       - name: Sanity test
         run: lean-llvm/bin/clang -v
