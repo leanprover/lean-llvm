@@ -21,7 +21,7 @@ jobs:
       matrix:
         include:
           - name: x86_64-linux-gnu
-            os: ubuntu-latest
+            os: ubuntu-20.04  # for old glibc
             more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib'
           - name: aarch64-linux-gnu
             os: nscloud-ubuntu-22.04-arm64-4x8
