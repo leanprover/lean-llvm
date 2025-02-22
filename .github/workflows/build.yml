@@ -25,7 +25,7 @@ jobs:
             # LLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON normally set by llvm/CMakeLists.txt but doesn't propagate to our separate runtimes build
             more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
           - name: aarch64-linux-gnu
-            os: nscloud-ubuntu-22.04-arm64-4x8
+            os: nscloud-ubuntu-20.04-arm64-4x8  # for old glibc
             more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
           - name: x86_64-apple-darwin
             os: macos-13  # still x64
@@ -112,6 +112,8 @@ jobs:
             -DLIBCXX_HERMETIC_STATIC_LIBRARY=ON -DLIBCXXABI_HERMETIC_STATIC_LIBRARY=ON\
             -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
             -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF\
+            `# https://github.com/llvm/llvm-project/pull/84750`\
+            -DLLVM_ENABLE_PIC=ON\
             ${{ matrix.more-opts }}
           cmake --build build/runtimes -j$(nproc)
           cmake --install build/runtimes
