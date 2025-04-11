@@ -78,8 +78,9 @@ jobs:
         with:
           msystem: clang64
           install: mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-ccache git mingw-w64-clang-x86_64-cmake make tar zstd
-      - name: Cache
-        uses: actions/cache@v2
+      - name: Restore Cache
+        id: restore-cache
+        uses: actions/cache/restore@v4
         with:
           path: .ccache
           key: ${{ matrix.name }}-build-${{ github.sha }}
@@ -127,6 +128,12 @@ jobs:
         run: lean-llvm/bin/clang -v
       - name: CCache stats
         run: ccache -s
+      - name: Save Cache
+        if: always() && steps.restore-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .ccache
+          key: ${{ matrix.name }}-build-${{ github.sha }}
       - uses: actions/upload-artifact@v4
         with:
           name: lean-llvm-${{ matrix.name }}
