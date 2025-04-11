@@ -94,29 +94,34 @@ jobs:
             -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF\
             `# https://boxbase.org/entries/2018/jun/11/minimal-llvm-build/`\
             -DLLVM_TARGETS_TO_BUILD='AArch64;WebAssembly;X86'\
-            -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DCLANG_DEFAULT_RTLIB=compiler-rt -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON\
+            -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DCLANG_DEFAULT_RTLIB=compiler-rt -DLIBCXX_USE_COMPILER_RT=ON\
+            -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON
             -DCOMPILER_RT_BUILD_SANITIZERS=OFF\
             -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
             -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF\
             ${{ matrix.more-opts }}
+          if [[ "${{ matrix.os }}" =~ "windows*" ]]; then
+            # LLVM wants to build the runtimes using the bootstrapped compiler via LLVM_ENABLE_RUNTIMES but that breaks horribly on Windows,
+            # build as a separate project using msys LLVM as before
+            cmake llvm-project/runtimes -G Ninja -B build/runtimes -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
+              -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;pstl;libcxx" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
+              -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF\
+              `# https://libcxx.llvm.org/BuildingLibcxx.html`\
+              -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON\
+              `# hide libc++ symbols in libleanshared`\
+              -DLIBCXX_HERMETIC_STATIC_LIBRARY=ON -DLIBCXXABI_HERMETIC_STATIC_LIBRARY=ON\
+              -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
+              -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF\
+              `# https://github.com/llvm/llvm-project/pull/84750`\
+              -DLLVM_ENABLE_PIC=ON\
+              ${{ matrix.more-opts }}
+            cmake --build build/runtimes -j$(nproc)
+            cmake --install build/runtimes
+          else
+            cmake -B build/llvm -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;pstl;libcxx"
+          fi
           cmake --build build/llvm -j$(nproc)
           cmake --install build/llvm
-          # LLVM wants to build the runtimes using the bootstrapped compiler via LLVM_ENABLE_RUNTIMES but that breaks horribly on Windows,
-          # build as a separate project using msys LLVM as before
-          cmake llvm-project/runtimes -G Ninja -B build/runtimes -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
-            -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;pstl;libcxx" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
-            -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF\
-            `# https://libcxx.llvm.org/BuildingLibcxx.html`\
-            -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON\
-            `# hide libc++ symbols in libleanshared`\
-            -DLIBCXX_HERMETIC_STATIC_LIBRARY=ON -DLIBCXXABI_HERMETIC_STATIC_LIBRARY=ON\
-            -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
-            -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF\
-            `# https://github.com/llvm/llvm-project/pull/84750`\
-            -DLLVM_ENABLE_PIC=ON\
-            ${{ matrix.more-opts }}
-          cmake --build build/runtimes -j$(nproc)
-          cmake --install build/runtimes
           tar cf lean-llvm-${{ matrix.name }}.tar.zst --use-compress-program="zstd -19" lean-llvm/
       - name: Sanity test
         run: lean-llvm/bin/clang -v
