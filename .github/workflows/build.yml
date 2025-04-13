@@ -23,10 +23,10 @@ jobs:
           - name: x86_64-linux-gnu
             os: ubuntu-20.04  # for old glibc
             # LLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON normally set by llvm/CMakeLists.txt but doesn't propagate to our separate runtimes build
-            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH="$ORIGIN/../lib" -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
+            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH="\$ORIGIN/../lib" -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
           - name: aarch64-linux-gnu
             os: nscloud-ubuntu-20.04-arm64-4x8  # for old glibc
-            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH="$ORIGIN/../lib" -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
+            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH="\$ORIGIN/../lib" -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
           - name: x86_64-apple-darwin
             os: macos-13  # still x64
             # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
@@ -110,7 +110,7 @@ jobs:
             -DLLVM_ENABLE_PIC=ON \
             -DLIBUNWIND_ENABLE_SHARED=OFF'
           eval cmake llvm-project/llvm -B build/llvm $COMMON_ARGS $LLVM_ARGS
-          if [[ "${{ matrix.os }}" =~ "windows*" ]]; then
+          if [[ "${{ matrix.os }}" =~ windows* ]]; then
             cmake --build build/llvm -j$(nproc)
             cmake --install build/llvm
             # LLVM wants to build the runtimes using the bootstrapped compiler via LLVM_ENABLE_RUNTIMES but that breaks horribly on Windows,
