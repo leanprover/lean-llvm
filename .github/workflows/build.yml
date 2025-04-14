@@ -44,7 +44,7 @@ jobs:
             more-opts: |
               -DCMAKE_SYSTEM_IGNORE_PATH=/usr/lib -DLLVM_HOST_TRIPLE=x86_64-w64-windows-gnu -DLLD_DEFAULT_LD_LLD_IS_MINGW=ON \
               -DLIBCXX_HAS_WIN32_THREAD_API=ON -DLIBCXXABI_HAS_WIN32_THREAD_API=ON -DLIBCXX_ENABLE_SHARED=OFF -DLIBCXXABI_ENABLE_SHARED=OFF -DLIBCXX_ENABLE_STATIC_ABI_LIBRARY=ON \
-              -G "Unix Makefiles" -DCMAKE_INSTALL_LIBDIR=lib -DLIBUNWIND_ENABLE_SHARED=OFF
+              -G "Unix Makefiles" -DCMAKE_INSTALL_LIBDIR=lib
       # complete all jobs
       fail-fast: false
     env:
@@ -78,8 +78,9 @@ jobs:
         with:
           msystem: clang64
           install: mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-ccache git mingw-w64-clang-x86_64-cmake make tar zstd
-      - name: Cache
-        uses: actions/cache@v2
+      - name: Restore Cache
+        id: restore-cache
+        uses: actions/cache/restore@v4
         with:
           path: .ccache
           key: ${{ matrix.name }}-build-${{ github.sha }}
@@ -88,40 +89,50 @@ jobs:
             ${{ matrix.name }}-build
       - name: Build
         run: |
+          set -euxo pipefail
           git clone -q --depth 1 -b llvmorg-19.1.2 --recursive https://github.com/llvm/llvm-project
-          cmake llvm-project/llvm -G Ninja -B build/llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
-            -DLLVM_ENABLE_PROJECTS="llvm;clang;lld;compiler-rt;bolt" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
-            -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF\
-            `# https://boxbase.org/entries/2018/jun/11/minimal-llvm-build/`\
-            -DLLVM_TARGETS_TO_BUILD='AArch64;WebAssembly;X86'\
-            -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DCLANG_DEFAULT_RTLIB=compiler-rt -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON\
-            -DCOMPILER_RT_BUILD_SANITIZERS=OFF\
-            -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
-            -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF\
-            ${{ matrix.more-opts }}
-          cmake --build build/llvm -j$(nproc)
-          cmake --install build/llvm
-          # LLVM wants to build the runtimes using the bootstrapped compiler via LLVM_ENABLE_RUNTIMES but that breaks horribly on Windows,
-          # build as a separate project using msys LLVM as before
-          cmake llvm-project/runtimes -G Ninja -B build/runtimes -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
-            -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;pstl;libcxx" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
-            -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF\
-            `# https://libcxx.llvm.org/BuildingLibcxx.html`\
-            -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON\
-            `# hide libc++ symbols in libleanshared`\
-            -DLIBCXX_HERMETIC_STATIC_LIBRARY=ON -DLIBCXXABI_HERMETIC_STATIC_LIBRARY=ON\
-            -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
-            -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF\
-            `# https://github.com/llvm/llvm-project/pull/84750`\
-            -DLLVM_ENABLE_PIC=ON\
-            ${{ matrix.more-opts }}
-          cmake --build build/runtimes -j$(nproc)
-          cmake --install build/runtimes
+          COMMON_ARGS=(-G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ \
+            -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON \
+            -DLLVM_TARGETS_TO_BUILD="AArch64;WebAssembly;X86" \
+            -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF \
+            -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON)
+          LLVM_ARGS=(-DLLVM_ENABLE_PROJECTS="llvm;clang;lld;compiler-rt;bolt" \
+            -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF \
+            -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DCLANG_DEFAULT_RTLIB=compiler-rt -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON \
+            -DCOMPILER_RT_BUILD_SANITIZERS=OFF)
+          RUNTIME_ARGS=(-DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;pstl;libcxx" \
+            `# https://libcxx.llvm.org/BuildingLibcxx.html` \
+            -DLIBCXX_USE_COMPILER_RT=ON -DLIBCXXABI_USE_COMPILER_RT=ON -DLIBCXXABI_USE_LLVM_UNWINDER=ON -DLIBUNWIND_USE_COMPILER_RT=ON \
+            `# hide libc++ symbols in libleanshared` \
+            -DLIBCXX_HERMETIC_STATIC_LIBRARY=ON -DLIBCXXABI_HERMETIC_STATIC_LIBRARY=ON \
+            `# https://github.com/llvm/llvm-project/pull/84750` \
+            -DLLVM_ENABLE_PIC=ON \
+            -DLIBUNWIND_ENABLE_SHARED=OFF)
+          if [[ "${{ matrix.os }}" =~ windows* ]]; then
+            cmake llvm-project/llvm -B build/llvm ${COMMON_ARGS[@]} ${LLVM_ARGS[@]} ${{ matrix.more-opts }}
+            cmake --build build/llvm -j$(nproc)
+            cmake --install build/llvm
+            # LLVM wants to build the runtimes using the bootstrapped compiler via LLVM_ENABLE_RUNTIMES but that breaks horribly on Windows,
+            # build as a separate project using msys LLVM as before
+            cmake llvm-project/runtimes -B build/runtimes ${COMMON_ARGS[@]} ${RUNTIME_ARGS[@]}
+            cmake --build build/runtimes -j$(nproc)
+            cmake --install build/runtimes
+          else
+            cmake llvm-project/llvm -B build/llvm ${COMMON_ARGS[@]} ${LLVM_ARGS[@]} ${RUNTIME_ARGS[@]} ${{ matrix.more-opts }}
+            cmake --build build/llvm -j$(nproc)
+            cmake --install build/llvm
+          fi
           tar cf lean-llvm-${{ matrix.name }}.tar.zst --use-compress-program="zstd -19" lean-llvm/
       - name: Sanity test
         run: lean-llvm/bin/clang -v
       - name: CCache stats
         run: ccache -s
+      - name: Save Cache
+        if: always() && steps.restore-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .ccache
+          key: ${{ matrix.name }}-build-${{ github.sha }}
       - uses: actions/upload-artifact@v4
         with:
           name: lean-llvm-${{ matrix.name }}
