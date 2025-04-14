@@ -23,18 +23,18 @@ jobs:
           - name: x86_64-linux-gnu
             os: ubuntu-20.04  # for old glibc
             # LLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON normally set by llvm/CMakeLists.txt but doesn't propagate to our separate runtimes build
-            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH="\$ORIGIN/../lib" -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
+            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
           - name: aarch64-linux-gnu
             os: nscloud-ubuntu-20.04-arm64-4x8  # for old glibc
-            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH="\$ORIGIN/../lib" -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
+            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
           - name: x86_64-apple-darwin
             os: macos-13  # still x64
             # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
-            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH="@loader_path/../lib" -DCMAKE_INSTALL_NAME_DIR="@rpath" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19 -DCOMPILER_RT_ENABLE_IOS=false
+            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19 -DCOMPILER_RT_ENABLE_IOS=false
           - name: aarch64-apple-darwin
             os: macos-latest
             # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
-            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH="@loader_path/../lib" -DCMAKE_INSTALL_NAME_DIR="@rpath" -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19 -DCOMPILER_RT_ENABLE_IOS=false
+            more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=10.19 -DCOMPILER_RT_ENABLE_IOS=false
           - name: x86_64-w64-windows-gnu
             os: windows-latest
             shell: msys2 {0}
@@ -95,8 +95,7 @@ jobs:
             -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON \
             -DLLVM_TARGETS_TO_BUILD="AArch64;WebAssembly;X86" \
             -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF \
-            -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON \
-            ${{ matrix.more-opts }})
+            -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON)
           LLVM_ARGS=(-DLLVM_ENABLE_PROJECTS="llvm;clang;lld;compiler-rt;bolt" \
             -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF \
             -DCLANG_DEFAULT_CXX_STDLIB=libc++ -DCLANG_DEFAULT_LINKER=lld -DCLANG_DEFAULT_RTLIB=compiler-rt -DCOMPILER_RT_USE_BUILTINS_LIBRARY=ON \
@@ -109,8 +108,8 @@ jobs:
             `# https://github.com/llvm/llvm-project/pull/84750` \
             -DLLVM_ENABLE_PIC=ON \
             -DLIBUNWIND_ENABLE_SHARED=OFF)
-          cmake llvm-project/llvm -B build/llvm ${COMMON_ARGS[@]} ${LLVM_ARGS[@]}
           if [[ "${{ matrix.os }}" =~ windows* ]]; then
+            cmake llvm-project/llvm -B build/llvm ${COMMON_ARGS[@]} ${LLVM_ARGS[@]} ${{ matrix.more-opts }}
             cmake --build build/llvm -j$(nproc)
             cmake --install build/llvm
             # LLVM wants to build the runtimes using the bootstrapped compiler via LLVM_ENABLE_RUNTIMES but that breaks horribly on Windows,
@@ -119,7 +118,7 @@ jobs:
             cmake --build build/runtimes -j$(nproc)
             cmake --install build/runtimes
           else
-            cmake build/llvm ${RUNTIME_ARGS[@]}
+            cmake llvm-project/llvm -B build/llvm ${COMMON_ARGS[@]} ${LLVM_ARGS[@]} ${RUNTIME_ARGS[@]} ${{ matrix.more-opts }}
             cmake --build build/llvm -j$(nproc)
             cmake --install build/llvm
           fi
