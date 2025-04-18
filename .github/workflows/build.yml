@@ -21,7 +21,7 @@ jobs:
       matrix:
         include:
           - name: x86_64-linux-gnu
-            os: ubuntu-20.04  # for old glibc
+            os: nscloud-ubuntu-20.04-amd64-4x8  # for old glibc
             # LLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON normally set by llvm/CMakeLists.txt but doesn't propagate to our separate runtimes build
             more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
           - name: aarch64-linux-gnu
@@ -78,8 +78,9 @@ jobs:
         with:
           msystem: clang64
           install: mingw-w64-clang-x86_64-clang mingw-w64-clang-x86_64-ccache git mingw-w64-clang-x86_64-cmake make tar zstd
-      - name: Cache
-        uses: actions/cache@v2
+      - name: Restore Cache
+        id: restore-cache
+        uses: actions/cache/restore@v4
         with:
           path: .ccache
           key: ${{ matrix.name }}-build-${{ github.sha }}
@@ -88,6 +89,7 @@ jobs:
             ${{ matrix.name }}-build
       - name: Build
         run: |
+          set -euxo pipefail
           git clone -q --depth 1 -b llvmorg-19.1.2 --recursive https://github.com/llvm/llvm-project
           cmake llvm-project/llvm -G Ninja -B build/llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
             -DLLVM_ENABLE_PROJECTS="llvm;clang;lld;compiler-rt;bolt" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
@@ -122,6 +124,12 @@ jobs:
         run: lean-llvm/bin/clang -v
       - name: CCache stats
         run: ccache -s
+      - name: Save Cache
+        if: always() && steps.restore-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: .ccache
+          key: ${{ matrix.name }}-build-${{ github.sha }}
       - uses: actions/upload-artifact@v4
         with:
           name: lean-llvm-${{ matrix.name }}
