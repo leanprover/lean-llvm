@@ -113,7 +113,7 @@ jobs:
             -DCMAKE_BUILD_WITH_INSTALL_RPATH=ON\
             -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF\
             `# https://github.com/llvm/llvm-project/pull/84750`\
-            -DLLVM_ENABLE_PIC=ON\
+            -DLLVM_ENABLE_PIC=ON -DCMAKE_POSITION_INDEPENDENT_CODE=ON\
             ${{ matrix.more-opts }}
           cmake --build build/runtimes -j$(nproc)
           cmake --install build/runtimes
