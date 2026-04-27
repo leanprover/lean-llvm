@@ -70,8 +70,7 @@ jobs:
       - name: Prepare
         if: startsWith(matrix.os, 'macos')
         run: |
-          brew install ninja llvm ccache zstd
-          echo "$(brew --prefix)/opt/llvm/bin" >> $GITHUB_PATH
+          brew install ninja ccache zstd
       - name: Prepare
         if: matrix.os == 'windows-latest'
         uses: msys2/setup-msys2@v2
