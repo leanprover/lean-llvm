@@ -89,7 +89,7 @@ jobs:
       - name: Build
         run: |
           set -euxo pipefail
-          git clone -q --depth 1 -b llvmorg-22.1.4 --recursive https://github.com/llvm/llvm-project
+          git clone -q --depth 1 -b fence-noescape --recursive https://github.com/nikic/llvm-project/
           cmake llvm-project/llvm -G Ninja -B build/llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
             -DLLVM_ENABLE_PROJECTS="llvm;clang;lld;compiler-rt;bolt" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
             -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF\
