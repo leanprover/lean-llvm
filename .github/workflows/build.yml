@@ -28,7 +28,7 @@ jobs:
             os: nscloud-ubuntu-20.04-arm64-4x8  # for old glibc
             more-opts: -DCMAKE_C_COMPILER=clang-21 -DCMAKE_CXX_COMPILER=clang++-21 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
           - name: x86_64-apple-darwin
-            os: macos-15-intel  # still x64
+            os: macos-26-intel  # still x64
             # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
             more-opts: -DLLVM_USE_LINKER=ld -DCMAKE_INSTALL_RPATH='@loader_path/../lib' -DCMAKE_INSTALL_NAME_DIR='@rpath' -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DCOMPILER_RT_ENABLE_IOS=false
           - name: aarch64-apple-darwin
