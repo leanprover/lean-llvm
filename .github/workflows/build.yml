@@ -23,10 +23,10 @@ jobs:
           - name: x86_64-linux-gnu
             os: nscloud-ubuntu-20.04-amd64-4x8  # for old glibc
             # LLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON normally set by llvm/CMakeLists.txt but doesn't propagate to our separate runtimes build
-            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
+            more-opts: -DCMAKE_C_COMPILER=clang-21 -DCMAKE_CXX_COMPILER=clang++-21 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
           - name: aarch64-linux-gnu
             os: nscloud-ubuntu-20.04-arm64-4x8  # for old glibc
-            more-opts: -DCMAKE_C_COMPILER=clang-19 -DCMAKE_CXX_COMPILER=clang++-19 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
+            more-opts: -DCMAKE_C_COMPILER=clang-21 -DCMAKE_CXX_COMPILER=clang++-21 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
           - name: x86_64-apple-darwin
             os: macos-15-intel  # still x64
             # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
@@ -65,8 +65,8 @@ jobs:
         if: contains(matrix.os, 'ubuntu')
         run: |
           sudo apt-get install -y ninja-build lld ccache
-          curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 19
-          sudo apt-get install -y clang-19 libc++-19-dev libc++abi-19-dev
+          curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 21
+          sudo apt-get install -y clang-21 libc++-21-dev libc++abi-21-dev
       - name: Prepare
         if: startsWith(matrix.os, 'macos')
         run: |
