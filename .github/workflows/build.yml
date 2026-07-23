@@ -52,7 +52,7 @@ jobs:
       LLVM_CCACHE_DIR: ${{ github.workspace }}/.ccache
       CCACHE_COMPRESS: true
       # the compiler is freshly installed on every runner, so its mtime always differs across runs;
-      # check the version string instead so the cache survives across runs
+      # use the version string as a cache key instead
       CCACHE_COMPILERCHECK: string:%compiler% --version
       # current cache limit
       CCACHE_MAXSIZE: 200M
