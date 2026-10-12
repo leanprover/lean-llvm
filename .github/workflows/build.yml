@@ -73,6 +73,8 @@ jobs:
           dnf install -y dnf-plugins-core epel-release
           dnf config-manager --set-enabled powertools
           dnf install -y clang lld compiler-rt cmake ninja-build ccache git python3.12 zstd
+          # let the container's clang find its compiler-rt under the triple we build for
+          ln -s "$(clang -print-target-triple)" "$(clang -print-resource-dir)/lib/$(uname -m)-unknown-linux-gnu"
           # `github.workspace` is the path outside of the container
           echo "CCACHE_DIR=$PWD/.ccache" >> "$GITHUB_ENV"
           echo "LLVM_CCACHE_DIR=$PWD/.ccache" >> "$GITHUB_ENV"
