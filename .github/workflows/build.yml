@@ -62,11 +62,6 @@ jobs:
       CCACHE_MAXSIZE: 200M
     steps:
       - uses: actions/checkout@v2
-      - name: Prepare Linux x86
-        if: matrix.container && contains(matrix.name, 'x86_64')
-        run: |
-          # multilib necessary for building compiler-rt
-          dnf install -y glibc-devel.i686 libgcc.i686
       - name: Prepare
         if: matrix.container
         run: |
