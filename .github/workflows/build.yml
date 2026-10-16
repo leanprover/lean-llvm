@@ -14,6 +14,7 @@ jobs:
   Build:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    container: ${{ matrix.container }}
     defaults:
       run:
         shell: ${{ matrix.shell || 'bash -euxo pipefail {0}' }}
@@ -21,12 +22,15 @@ jobs:
       matrix:
         include:
           - name: x86_64-linux-gnu
-            os: nscloud-ubuntu-20.04-amd64-4x8  # for old glibc
+            os: nscloud-ubuntu-24.04-amd64-4x8
+            container: almalinux:8  # for old glibc (2.28)
             # LLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON normally set by llvm/CMakeLists.txt but doesn't propagate to our separate runtimes build
-            more-opts: -DCMAKE_C_COMPILER=clang-21 -DCMAKE_CXX_COMPILER=clang++-21 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
+            # the container's clang defaults to a vendor-specific triple and CMake to `lib64` there
+            more-opts: -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON -DLLVM_DEFAULT_TARGET_TRIPLE=x86_64-unknown-linux-gnu -DCMAKE_INSTALL_LIBDIR=lib -DPython3_EXECUTABLE=/usr/bin/python3.12
           - name: aarch64-linux-gnu
-            os: nscloud-ubuntu-20.04-arm64-4x8  # for old glibc
-            more-opts: -DCMAKE_C_COMPILER=clang-21 -DCMAKE_CXX_COMPILER=clang++-21 -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON
+            os: nscloud-ubuntu-24.04-arm64-4x8
+            container: almalinux:8  # for old glibc (2.28)
+            more-opts: -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON -DLLVM_DEFAULT_TARGET_TRIPLE=aarch64-unknown-linux-gnu -DCMAKE_INSTALL_LIBDIR=lib -DPython3_EXECUTABLE=/usr/bin/python3.12
           - name: x86_64-apple-darwin
             os: macos-26-intel  # still x64
             # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
@@ -58,18 +62,17 @@ jobs:
       CCACHE_MAXSIZE: 200M
     steps:
       - uses: actions/checkout@v2
-      - name: Prepare Linux x86
-        if: contains(matrix.os, 'ubuntu') && contains(matrix.os, 'amd64')
-        run: |
-          # multilib necessary for building compiler-rt
-          sudo apt-get update -y
-          sudo apt-get install -y gcc-multilib
       - name: Prepare
-        if: contains(matrix.os, 'ubuntu')
+        if: matrix.container
         run: |
-          sudo apt-get install -y ninja-build lld ccache
-          curl https://apt.llvm.org/llvm.sh | sudo bash -s -- 21
-          sudo apt-get install -y clang-21 libc++-21-dev libc++abi-21-dev
+          dnf install -y dnf-plugins-core epel-release
+          dnf config-manager --set-enabled powertools
+          dnf install -y clang lld compiler-rt cmake ninja-build ccache git python3.12 zstd
+          # let the container's clang find its compiler-rt under the triple we build for
+          ln -s "$(clang -print-target-triple)" "$(clang -print-resource-dir)/lib/$(uname -m)-unknown-linux-gnu"
+          # `github.workspace` is the path outside of the container
+          echo "CCACHE_DIR=$PWD/.ccache" >> "$GITHUB_ENV"
+          echo "LLVM_CCACHE_DIR=$PWD/.ccache" >> "$GITHUB_ENV"
       - name: Prepare
         if: startsWith(matrix.os, 'macos')
         run: |
@@ -89,10 +92,21 @@ jobs:
           # fall back to (latest) previous cache
           restore-keys: |
             ${{ matrix.name }}-build
+      - name: Clone LLVM
+        run: git clone -q --depth 1 -b llvmorg-23.1.1 --recursive https://github.com/llvm/llvm-project
+      - name: Build host libc++
+        if: matrix.container
+        run: |
+          # `LLVM_ENABLE_LIBCXX` needs a libc++ on the host but the container has no package for it
+          cmake llvm-project/runtimes -G Ninja -B build/host-runtimes -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DLLVM_LIBDIR_SUFFIX=64\
+            -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DLLVM_CCACHE_BUILD=ON\
+            -DLLVM_ENABLE_RUNTIMES="libunwind;libcxxabi;libcxx"\
+            -DLLVM_INCLUDE_TESTS=OFF -DLLVM_INCLUDE_BENCHMARKS=OFF -DPython3_EXECUTABLE=/usr/bin/python3.12
+          cmake --build build/host-runtimes -j$(nproc)
+          cmake --install build/host-runtimes
       - name: Build
         run: |
           set -euxo pipefail
-          git clone -q --depth 1 -b llvmorg-23.1.1 --recursive https://github.com/llvm/llvm-project
           cmake llvm-project/llvm -G Ninja -B build/llvm -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$PWD/lean-llvm -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++\
             -DLLVM_ENABLE_PROJECTS="llvm;clang;lld;compiler-rt;bolt" -DLLVM_LINK_LLVM_DYLIB=ON -DLLVM_CCACHE_BUILD=ON\
             -DLLVM_ENABLE_LIBXML2=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_TERMINFO=OFF -DLLVM_ENABLE_LIBCXX=ON -DLLVM_ENABLE_FFI=OFF\
@@ -124,6 +138,12 @@ jobs:
           tar cf lean-llvm-${{ matrix.name }}.tar.zst --use-compress-program="zstd -19" lean-llvm/
       - name: Sanity test
         run: lean-llvm/bin/clang -v
+      - name: Check glibc requirement
+        if: matrix.container
+        run: |
+          max=$({ find lean-llvm/bin lean-llvm/lib -type f -exec objdump -T {} + 2>/dev/null || true; } | { grep -o 'GLIBC_[0-9.]*' || true; } | sort -uV | tail -n1)
+          echo "newest required glibc symbol version: $max"
+          [[ "$(printf '%s\n' GLIBC_2.28 "$max" | sort -V | tail -n1)" == GLIBC_2.28 ]]
       - name: CCache stats
         run: ccache -s
       - name: Save Cache
