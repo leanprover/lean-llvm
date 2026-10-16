@@ -93,7 +93,7 @@ jobs:
           restore-keys: |
             ${{ matrix.name }}-build
       - name: Clone LLVM
-        run: git clone -q --depth 1 -b llvmorg-23.1.1 --recursive https://github.com/llvm/llvm-project
+        run: git clone -q --depth 1 -b llvmorg-23.1.3 --recursive https://github.com/llvm/llvm-project
       - name: Build host libc++
         if: matrix.container
         run: |
