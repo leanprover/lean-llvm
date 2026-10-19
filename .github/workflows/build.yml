@@ -26,11 +26,11 @@ jobs:
             container: almalinux:8  # for old glibc (2.28)
             # LLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON normally set by llvm/CMakeLists.txt but doesn't propagate to our separate runtimes build
             # the container's clang defaults to a vendor-specific triple and CMake to `lib64` there
-            more-opts: -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON -DLLVM_DEFAULT_TARGET_TRIPLE=x86_64-unknown-linux-gnu -DCMAKE_INSTALL_LIBDIR=lib -DPython3_EXECUTABLE=/usr/bin/python3.12
+            more-opts: -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON -DLLVM_ENABLE_ZLIB=FORCE_ON -DLLVM_DEFAULT_TARGET_TRIPLE=x86_64-unknown-linux-gnu -DCMAKE_INSTALL_LIBDIR=lib -DPython3_EXECUTABLE=/usr/bin/python3.12
           - name: aarch64-linux-gnu
             os: nscloud-ubuntu-24.04-arm64-4x8
             container: almalinux:8  # for old glibc (2.28)
-            more-opts: -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON -DLLVM_DEFAULT_TARGET_TRIPLE=aarch64-unknown-linux-gnu -DCMAKE_INSTALL_LIBDIR=lib -DPython3_EXECUTABLE=/usr/bin/python3.12
+            more-opts: -DCMAKE_INSTALL_RPATH='$ORIGIN/../lib' -DLLVM_ENABLE_PER_TARGET_RUNTIME_DIR=ON -DLLVM_ENABLE_ZLIB=FORCE_ON -DLLVM_DEFAULT_TARGET_TRIPLE=aarch64-unknown-linux-gnu -DCMAKE_INSTALL_LIBDIR=lib -DPython3_EXECUTABLE=/usr/bin/python3.12
           - name: x86_64-apple-darwin
             os: macos-26-intel  # still x64
             # ld64.lld: warning: Option `-reexported_symbols_list' is not yet implemented. Stay tuned...
@@ -67,7 +67,7 @@ jobs:
         run: |
           dnf install -y dnf-plugins-core epel-release
           dnf config-manager --set-enabled powertools
-          dnf install -y clang lld compiler-rt cmake ninja-build ccache git python3.12 zstd
+          dnf install -y clang lld compiler-rt cmake ninja-build ccache git python3.12 zstd zlib-devel
           # let the container's clang find its compiler-rt under the triple we build for
           ln -s "$(clang -print-target-triple)" "$(clang -print-resource-dir)/lib/$(uname -m)-unknown-linux-gnu"
           # `github.workspace` is the path outside of the container
